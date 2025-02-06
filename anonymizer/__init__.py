@@ -160,48 +160,82 @@ class CRAnonymiser:
         self.nlp = pipeline('ner', model=self.model, tokenizer=self.tokenizer, aggregation_strategy="simple")
         self.MEDICAL_PROPER_NAMES = MEDICAL_PROPER_NAMES
 
-    @staticmethod
     def check_email(email_adr: str) -> bool:
         """Vérifie si une adresse email est valide."""
         email_adr = email_adr.replace("%40", "@")
         email_regex = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
-        return bool(re.match(email_regex, email_adr))
+        return True if re.match(email_regex, email_adr) else False
 
-    def remove_emails(self, text: str) -> str:
+    def remove_emails(self,text):
         """Remplace les emails par [email] dans le texte."""
         email_pattern = r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
-        return re.sub(email_pattern, " [email] ", text)
+        def replace_email(match):
+            email = match.group(0)
+            return " [email] " if self.check_email(email) else email
+        return re.sub(email_pattern, replace_email, text)
 
-    @staticmethod
     def check_phone_number(phone_number: str) -> bool:
         """Vérifie si un numéro de téléphone est valide."""
-        phone_number = re.sub(r"[ \-.]", "", phone_number)
-        phone_regex = r"^\+?\d{1,3}\d{9,10}$"
-        return bool(re.match(phone_regex, phone_number))
+        phone_number = phone_number.replace(" ", "").replace("-", "").replace(".", "")
+        phone_regex = r"^(\+?\d{1,3})?(\d{9,10})$"
+        return True if re.match(phone_regex, phone_number) else False
 
-    def remove_phone_numbers(self, text: str) -> str:
+    def remove_phone_numbers(self,text):
         """Remplace les numéros de téléphone par [numéro de téléphone] dans le texte."""
         phone_pattern = r"\+?\d{1,3}[ \-\.]?\(?\d{1,4}\)?[ \-\.]?\d{1,3}[ \-\.]?\d{1,3}[ \-\.]?\d{1,4}"
-        return re.sub(phone_pattern, " [numéro de téléphone] ", text)
+        def replace_phone(match):
+            phone = match.group(0)
+            return " [numéro de téléphone] " if self.check_phone_number(phone) else phone
+        return re.sub(phone_pattern, replace_phone, text)
 
-    def remove_rare_diseases(self, text: str) -> str:
+    def is_duration(text: str) -> bool:
+        """Détecte les durées dans le texte."""
+        duration_pattern = r'\b(?:dans|à|a|après)?\s*(\d+|un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix)(?:\s*(?:à|-|–)\s*(\d+))?\s*(année(?:s)?|mois?|semaine(?:s)?|jour(?:s)?|heure(?:s)?|minute(?:s)?|seconde(?:s)?|h|min|s|ms)\b'
+        return bool(re.match(duration_pattern, text, re.IGNORECASE))
+
+
+    def is_age(text: str) -> bool:
+        """Détecte les âges dans le texte."""
+        age_pattern = r'\b(\d{1,3})\s*ans?\b'
+        return bool(re.match(age_pattern, text, re.IGNORECASE))
+
+
+    def is_temporal_expression(text: str) -> bool:
+        """Détecte les expressions temporelles."""
+        temporal_patterns = [
+            r'\bhier\b', r'\bdemain\b', r'\baujourd\'hui\b', r'\bavant-hier\b', r'\baprès-demain\b',
+            r'\bsemaine\s+(dernière|prochaine)\b', r'\bce\s+(matin|soir|après-midi)\b',
+            r'\bplusieurs\s+(années|mois|jours|minutes|secondes|heures)\b',
+            r"\b([01]?\d|2[0-3])h([0-5]?\d)\b", r"\b([01]?\d|2[0-3])heure([0-5]?\d)\b",
+            r"\b\d+(\.\d+)?\s?ms\b", r"\b(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\b"
+        ]
+        for pattern in temporal_patterns:
+            if re.search(pattern, text, re.IGNORECASE):
+                return True
+        return False
+      
+    def remove_rare_diseases(self,text):
         """Remplace les maladies rares dans le texte par [maladie rare]."""
+        lower_text = text.lower()
         for maladie in self.maladies:
-            text = re.sub(re.escape(maladie), " [maladie rare] ", text, flags=re.IGNORECASE)
-        return text
-
+            lower_maladie = maladie.lower()
+            if all(word in lower_text.split() for word in lower_maladie.split()):
+                if maladie.isupper():
+                  return re.sub(re.escape(maladie), " [maladie rare] ", text)
+                else:
+                    return re.sub(re.escape(maladie), " [maladie rare] ", text, flags=re.IGNORECASE)
+                  
+    
     def detect_entity_date_type(self, text: str) -> str:
         """Détecte le type d'entité temporelle."""
-        age_pattern = r"\b(\d{1,3})\s*ans?\b"
-        temporal_patterns = [
-            r"\bhier\b", r"\bdemain\b", r"\baujourd'hui\b", r"\bavant-hier\b", r"\baprès-demain\b",
-            r"\b(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\b"
-        ]
-        if re.search(age_pattern, text, re.IGNORECASE):
+        if self.is_age(text):
             return " [Âge] "
-        if any(re.search(pattern, text, re.IGNORECASE) for pattern in temporal_patterns):
+        elif self.is_temporal_expression(text):
             return " [Temps] "
-        return " [Date] "
+        elif self.is_duration(text):
+            return " [Durée] "
+        else:
+            return " [Date] "
 
     def anonymise(self, text: str) -> str:
         """Anonymise le texte."""
@@ -216,7 +250,7 @@ class CRAnonymiser:
         ]
         date_entities = [entity for entity in entities if entity['entity_group'] == 'DATE']
         localisation_entities=[entity for entity in entities if entity['entity_group'] == 'LOC']
-        all_entities = sorted(person_entities + date_entities+localisation_entities, key=lambda x: x['start'], reverse=True)
+        all_entities = sorted(person_entities + date_entities + localisation_entities, key=lambda x: x['start'], reverse=True)
         
         for entity in all_entities:
             replacement_text = (
