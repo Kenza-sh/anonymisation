@@ -160,7 +160,7 @@ class CRAnonymiser:
         self.nlp = pipeline('ner', model=self.model, tokenizer=self.tokenizer, aggregation_strategy="simple")
         self.MEDICAL_PROPER_NAMES = MEDICAL_PROPER_NAMES
 
-    def check_email(email_adr: str) -> bool:
+    def check_email(self,email_adr: str) -> bool:
         """Vérifie si une adresse email est valide."""
         email_adr = email_adr.replace("%40", "@")
         email_regex = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
@@ -174,7 +174,7 @@ class CRAnonymiser:
             return " [email] " if self.check_email(email) else email
         return re.sub(email_pattern, replace_email, text)
 
-    def check_phone_number(phone_number: str) -> bool:
+    def check_phone_number(self,phone_number: str) -> bool:
         """Vérifie si un numéro de téléphone est valide."""
         phone_number = phone_number.replace(" ", "").replace("-", "").replace(".", "")
         phone_regex = r"^(\+?\d{1,3})?(\d{9,10})$"
