@@ -224,6 +224,8 @@ class CRAnonymiser:
                   return re.sub(re.escape(maladie), " [maladie rare] ", text)
                 else:
                     return re.sub(re.escape(maladie), " [maladie rare] ", text, flags=re.IGNORECASE)
+            
+        return text
                   
     
     def detect_entity_date_type(self, text: str) -> str:
