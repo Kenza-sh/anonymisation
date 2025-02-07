@@ -188,19 +188,19 @@ class CRAnonymiser:
             return " [numéro de téléphone] " if self.check_phone_number(phone) else phone
         return re.sub(phone_pattern, replace_phone, text)
 
-    def is_duration(text: str) -> bool:
+    def is_duration(self,text: str) -> bool:
         """Détecte les durées dans le texte."""
         duration_pattern = r'\b(?:dans|à|a|après)?\s*(\d+|un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix)(?:\s*(?:à|-|–)\s*(\d+))?\s*(année(?:s)?|mois?|semaine(?:s)?|jour(?:s)?|heure(?:s)?|minute(?:s)?|seconde(?:s)?|h|min|s|ms)\b'
         return bool(re.match(duration_pattern, text, re.IGNORECASE))
 
 
-    def is_age(text: str) -> bool:
+    def is_age(self,text: str) -> bool:
         """Détecte les âges dans le texte."""
         age_pattern = r'\b(\d{1,3})\s*ans?\b'
         return bool(re.match(age_pattern, text, re.IGNORECASE))
 
 
-    def is_temporal_expression(text: str) -> bool:
+    def is_temporal_expression(self,text: str) -> bool:
         """Détecte les expressions temporelles."""
         temporal_patterns = [
             r'\bhier\b', r'\bdemain\b', r'\baujourd\'hui\b', r'\bavant-hier\b', r'\baprès-demain\b',
