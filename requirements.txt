@@ -1,5 +1,6 @@
 azure-functions
 transformers
-torch --index-url https://download.pytorch.org/whl/cpu
+--find-links https://download.pytorch.org/whl/torch_stable.html
+torch==1.11.0+cpu
 tiktoken
 sentencepiece
